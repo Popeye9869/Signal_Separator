@@ -217,7 +217,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /* USER CODE BEGIN TIM1_MspPostInit 1 */
-    //HAL_TIMEx_RemapConfig(timHandle, TIM_TIM1_TI1_COMP1);
+    
   /* USER CODE END TIM1_MspPostInit 1 */
   }
 
