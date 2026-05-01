@@ -14,10 +14,6 @@
  */
 void ClockGen_Init(void);
 
-/**
- * @brief  TIM2 输入捕获回调处理 (在 HAL_TIM_IC_CaptureCallback 中调用)
- * @param  htim  定时器句柄
- */
-void ClockGen_IC_CaptureCallback(TIM_HandleTypeDef *htim);
+void ClockGen_Update(void);
 
 #endif /* CLOCK_GEN_H */

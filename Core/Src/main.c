@@ -22,13 +22,13 @@
 #include "comp.h"
 #include "dac.h"
 #include "spi.h"
+#include "stm32g4xx_hal_tim.h"
 #include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-//#include "clock_gen.h"
-#include "app.h"
+#include "clock_gen.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -100,11 +100,7 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  App_Init();
-  HAL_COMP_Start(&hcomp1);
-  //HAL_TIM_Base_Start(&htim1);
-  HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_2);
-  //ClockGen_Init();
+  ClockGen_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
