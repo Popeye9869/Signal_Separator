@@ -22,7 +22,6 @@
 #include "comp.h"
 #include "dac.h"
 #include "spi.h"
-#include "stm32g4xx_hal_tim.h"
 #include "tim.h"
 #include "gpio.h"
 
@@ -60,7 +59,13 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    if(GPIO_Pin == KEY_Pin)
+    {
+        ClockGen_Update();// 按键中断回调函数，更新时钟发生器频率
+    }
+}
 /* USER CODE END 0 */
 
 /**
@@ -161,10 +166,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-// void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
-// {
-//     ClockGen_IC_CaptureCallback(htim);
-// }
+
 /* USER CODE END 4 */
 
 /**

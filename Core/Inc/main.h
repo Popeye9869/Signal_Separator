@@ -61,6 +61,9 @@ void Error_Handler(void);
 #define CS1_GPIO_Port GPIOC
 #define CS2_Pin GPIO_PIN_5
 #define CS2_GPIO_Port GPIOC
+#define KEY_Pin GPIO_PIN_15
+#define KEY_GPIO_Port GPIOD
+#define KEY_EXTI_IRQn EXTI15_10_IRQn
 
 /* USER CODE BEGIN Private defines */
 
