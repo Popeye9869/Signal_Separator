@@ -49,6 +49,7 @@ void MX_OPAMP3_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN OPAMP3_Init 2 */
+  HAL_OPAMP_Start(&hopamp3);// 启动 OPAMP3，进入跟随器模式
 
   /* USER CODE END OPAMP3_Init 2 */
 

@@ -14,7 +14,7 @@
 void ClockGen_Init(void)
 {
     BSP_COMP_Init();
-    BSP_COMP_SetVref(0.5); 
+    BSP_COMP_SetVref(1.2); 
     /* 设置一个初始分频比, 假设输入 5kHz → ratio=1, ARR=0 */
     __HAL_TIM_SET_AUTORELOAD(&htim1, 1);  
     /* 启动 TIM1 OC Toggle 输出 */
