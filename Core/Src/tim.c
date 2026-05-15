@@ -183,7 +183,7 @@ void MX_TIM3_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN TIM3_Init 2 */
-
+  HAL_TIM_Base_Start(&htim3); // 启动 TIM3，开始产生 1.024MHz 的更新事件
   /* USER CODE END TIM3_Init 2 */
 
 }

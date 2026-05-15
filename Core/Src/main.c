@@ -32,6 +32,10 @@
 /* USER CODE BEGIN Includes */
 #include "clock_gen.h"
 #include "arm_math.h"
+#include "SEGGER_RTT.h"
+#include "AD983x.h"
+#include <stdint.h>
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,12 +56,200 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+uint16_t adcValues[1024]={0}; // 存储 ADC 采样值的数组
+q15_t fftOutput[2048]={0}; // 存储 FFT 输出的数组
+uint32_t fftMagnitude[512/5]={0}; // 存储 FFT 幅值的数组
+arm_rfft_instance_q15 S; // 定义 RFFT 实例
+
+static AD983x_Handle_t ad9833_dds_1 = {
+  .gpioPort                     = GPIOE,                     /* GPIO port used for DDS control pins              */
+  .serialDataGpioPin            = GPIO_PIN_14,                /* SDATA: serial data line to the DDS               */
+  .serialClockGpioPin           = GPIO_PIN_12,                /* SCLK: serial clock for shifting data             */
+  .frameSyncGpioPin             = GPIO_PIN_15,                /* FSYNC: frame sync / chip select for DDS          */
+  .spiHandle                    = &hspi4,                    /* Hardware SPI handle (NULL for software SPI)      */
+  .masterClockFrequencyHz       = 1280000u,                 /* 25 MHz MCLK input provided to AD9833             */
+  .currentWaveformType          = AD983X_WAVE_SINE,          /* Default waveform output (sine wave)              */
+  .activeFrequencyRegister      = AD983X_REG_0,              /* Currently selected frequency register (FREQ0)    */
+  .activePhaseRegister          = AD983X_REG_0,              /* Currently selected phase register (PHASE0)       */
+  .sleep1BitState               = AD983X_SLEEP_DISABLED,     /* DAC sleep control bit state                      */
+  .sleep12BitState              = AD983X_SLEEP_DISABLED,     /* Master clock / internal sleep control            */
+  .deviceType                   = AD983X_DEVICE_AD9833,      /* Specifies the DDS device type                    */
+  .frequencyHz                  = { 0u, 0u },                /* Stored frequencies for FREQ0 and FREQ1 registers */
+  .phaseDeg                     = { 0u, 0u },                /* Stored phases for PHASE0 and PHASE1 registers    */
+};
+
+
+static AD983x_Handle_t ad9833_dds_2 = {
+  .gpioPort                     = GPIOC,                     /* GPIO port used for DDS control pins              */
+  .serialDataGpioPin            = GPIO_PIN_7,                /* SDATA: serial data line to the DDS               */
+  .serialClockGpioPin           = GPIO_PIN_5,                /* SCLK: serial clock for shifting data             */
+  .frameSyncGpioPin             = GPIO_PIN_4,                /* FSYNC: frame sync / chip select for DDS          */
+  .spiHandle                    = &hspi1,                    /* Hardware SPI handle (NULL for software SPI)      */
+  .masterClockFrequencyHz       = 1280000u,                 /* 25 MHz MCLK input provided to AD9833             */
+  .currentWaveformType          = AD983X_WAVE_SINE,          /* Default waveform output (sine wave)              */
+  .activeFrequencyRegister      = AD983X_REG_0,              /* Currently selected frequency register (FREQ0)    */
+  .activePhaseRegister          = AD983X_REG_0,              /* Currently selected phase register (PHASE0)       */
+  .sleep1BitState               = AD983X_SLEEP_DISABLED,     /* DAC sleep control bit state                      */
+  .sleep12BitState              = AD983X_SLEEP_DISABLED,     /* Master clock / internal sleep control            */
+  .deviceType                   = AD983X_DEVICE_AD9833,      /* Specifies the DDS device type                    */
+  .frequencyHz                  = { 0u, 0u },                /* Stored frequencies for FREQ0 and FREQ1 registers */
+  .phaseDeg                     = { 0u, 0u },                /* Stored phases for PHASE0 and PHASE1 registers    */
+};
+
+typedef struct {
+  uint32_t peak_freq;
+  uint32_t peak_value;
+} peak_Info_t;
+
+typedef struct {
+  uint8_t num_peak;
+  peak_Info_t peak_info[5];
+  uint8_t highest_peak_index;
+} waveform_info_t;
+
+typedef struct {
+  uint32_t Freq;
+  uint16_t Phase;
+  AD983x_Waveform_t Waveform;
+} DDS_OUTPUT;
+
+DDS_OUTPUT dds_output[2] = {0};
+waveform_info_t waveform_info = {0};
+
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+
+void WaveIdentify(void)
+{
+  for (int i = 0; i < 512/5; i++)
+  {
+    if (fftMagnitude[i] > 190)
+    {
+      waveform_info.peak_info[waveform_info.num_peak].peak_freq = i*5000; // 记录峰值频率
+      waveform_info.peak_info[waveform_info.num_peak].peak_value = fftMagnitude[i]; // 记录峰值幅值
+      waveform_info.num_peak++;
+    }
+  }
+  waveform_info.highest_peak_index = 0;
+  for (int i = 1; i < waveform_info.num_peak; i++)
+  {
+    if (waveform_info.peak_info[i].peak_value > waveform_info.peak_info[waveform_info.highest_peak_index].peak_value)
+    {
+      waveform_info.highest_peak_index = i; // 更新最高峰值索引
+    }
+  }
+  switch (waveform_info.num_peak) {
+    case 2:
+      float ratio = (float)waveform_info.peak_info[1].peak_value / (float)waveform_info.peak_info[0].peak_value;
+      if(ratio>1.1)
+      {
+        dds_output[0].Waveform = AD983X_WAVE_TRIANGLE;
+        dds_output[0].Freq = waveform_info.peak_info[0].peak_freq;
+        dds_output[1].Waveform = AD983X_WAVE_SINE;
+        dds_output[1].Freq = waveform_info.peak_info[1].peak_freq;
+      }
+      else
+      {
+        dds_output[0].Waveform = AD983X_WAVE_SINE;
+        dds_output[0].Freq = waveform_info.peak_info[0].peak_freq;
+        dds_output[1].Waveform = AD983X_WAVE_SINE;
+        dds_output[1].Freq = waveform_info.peak_info[1].peak_freq;
+      }
+      break;
+    case 3:
+      uint8_t compare_index = waveform_info.peak_info[waveform_info.highest_peak_index].peak_freq/5000*3;
+      if(fftMagnitude[compare_index]>1000||fftMagnitude[compare_index]<150)
+      {
+        uint8_t k = 0;
+        for(int i=0;i<waveform_info.num_peak;i++)
+        {
+          if(waveform_info.peak_info[i].peak_freq > 1000)
+          {
+            if(i==waveform_info.highest_peak_index)
+            {
+              dds_output[k].Waveform = AD983X_WAVE_SINE;
+              dds_output[k].Freq = waveform_info.peak_info[i].peak_freq;
+              k++;
+            }
+            else
+            {
+              dds_output[k].Waveform = AD983X_WAVE_TRIANGLE;
+              dds_output[k].Freq = waveform_info.peak_info[i].peak_freq;
+              k++;
+            }
+          }
+          if(k>=2)
+          {
+            break;
+          }
+        }
+      }
+      else
+      {
+        dds_output[0].Waveform = AD983X_WAVE_TRIANGLE;
+        dds_output[1].Waveform = AD983X_WAVE_TRIANGLE;
+        int k = 0;
+        for(int i=0;i<waveform_info.num_peak;i++)
+        {
+          if(waveform_info.peak_info[i].peak_freq > 1000)
+          {
+            dds_output[k].Freq = waveform_info.peak_info[i].peak_freq;
+            k++;
+            if(k>=2)
+            {
+              break;
+            }
+          }
+        }
+      }
+      break;
+    case 4:
+      dds_output[0].Waveform = AD983X_WAVE_TRIANGLE;
+      dds_output[0].Freq = waveform_info.peak_info[0].peak_freq;
+      dds_output[1].Waveform = AD983X_WAVE_TRIANGLE;
+      if(waveform_info.peak_info[1].peak_value > 1000)
+      {
+        dds_output[1].Freq = waveform_info.peak_info[1].peak_freq;
+      }
+      else
+      {
+        dds_output[1].Freq = waveform_info.peak_info[2].peak_freq;
+      }
+      break;
+    default:
+      dds_output[0].Waveform = AD983X_WAVE_SINE;
+      dds_output[0].Freq = waveform_info.peak_info[0].peak_freq;
+      dds_output[1].Waveform = AD983X_WAVE_SINE;
+      dds_output[1].Freq = waveform_info.peak_info[1].peak_freq;
+      break;
+  }
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+{
+    if (hadc->Instance == ADC1)
+    {
+      for (int i = 0; i < 1024; i++) {
+        adcValues[i] = adcValues[i] >> 1; // 将 12 位 ADC 数据转换为 15 位 Q15 格式
+      }
+      arm_rfft_init_q15(&S, 1024, 0, 1); // 初始化 RFFT 实例，长度为 1024，正向 FFT，使用 bit-reversal 顺序
+      arm_rfft_q15(&S, (q15_t*)adcValues, fftOutput);
+      //arm_cmplx_mag_q15(fftOutput, fftMagnitude, 512 ); // 计算 FFT 输出的幅值512
+      for (int i = 0; i < 512/5; i++) {// 只计算i为5的倍数的幅值
+        uint32_t real = fftOutput[2*i*5]; // 实部
+        uint32_t imag = fftOutput[2*i*5 + 1]; // 虚部
+        fftMagnitude[i] = sqrt(real * real + imag * imag); // 计算幅值
+      }
+      fftMagnitude[0] = 0; // 直流分量幅值设为0，忽略直流偏置对频谱的影响
+      WaveIdentify(); // 进行波形识别，更新 dds_output 数组
+      AD983x_Init(&ad9833_dds_1, dds_output[0].Waveform, dds_output[0].Freq, 0); // 初始化第一个 AD9833 DDS
+      AD983x_Init(&ad9833_dds_2, dds_output[1].Waveform, dds_output[1].Freq, 0); // 初始化第二个 AD9833 DDS
+    }
+}
 
 /* USER CODE END PFP */
 
@@ -106,13 +298,13 @@ int main(void)
   MX_I2C2_Init();
   MX_OPAMP3_Init();
   MX_TIM3_Init();
-  /* USER CODE BEGIN 2 */
-
+  /* USER CODE BEGIN 2 */  
   ClockGen_Init();
   HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_RESET); // 指示灯亮，表示时钟发生器已启动
   HAL_Delay(500); // 等待时钟发生器稳定
-  ClockGen_Update();
+  ClockGen_Update(); // 进行一次时钟更新，调整分频比以匹配输入信号频率
   HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adcValues, 1024); // 启动 ADC DMA 采样，结果存储在 adcValues 数组中
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -142,13 +334,12 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV1;
-  RCC_OscInitStruct.PLL.PLLN = 16;
+  RCC_OscInitStruct.PLL.PLLN = 32;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
