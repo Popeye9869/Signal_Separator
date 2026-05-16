@@ -14,14 +14,14 @@
 void ClockGen_Init(void)
 {
     BSP_COMP_Init();
-    BSP_COMP_SetVref(1.2); 
+    BSP_COMP_SetVref(1.25); 
     /* 设置一个初始分频比, 假设输入 5kHz → ratio=1, ARR=0 */
     __HAL_TIM_SET_AUTORELOAD(&htim1, 1);  
     /* 启动 TIM1 OC Toggle 输出 */
     HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_2);
 }
 
-void ClockGen_Update(void)
+uint16_t ClockGen_GetDivider(void)
 {
     __HAL_TIM_SET_AUTORELOAD(&htim1, 65535);
     __HAL_TIM_CLEAR_FLAG(&htim2, TIM_FLAG_UPDATE);   // 先清除残留标志
@@ -45,6 +45,51 @@ void ClockGen_Update(void)
     else if(countDiff%200 < 20) countDiff = countDiff - countDiff%200 ;
     else countDiff = countDiff - countDiff%200;
     uint16_t targetARR = (countDiff / 200)-1;
-    __HAL_TIM_SET_AUTORELOAD(&htim1, targetARR);
+    return targetARR;
+}
+
+void ClockGen_Update(void)
+{
+    uint16_t targetARR[20]={0};
+    uint16_t VrefDACValue = 2048-1000;
+    for(int i=0;i<20;i++)
+    {
+        BSP_COMP_SetVrefDACValue(VrefDACValue); // 调整比较电压，改变测量窗口位置
+        VrefDACValue += 100; // 每次增加 100 DAC 单位
+        targetARR[i] = ClockGen_GetDivider();
+        if(targetARR[i] > 100)
+        {
+            targetARR[i] = 0;
+        }
+    }
+    //记录target的最长重复长度，选取最长重复的target作为最终的ARR值和比较电压
+    uint16_t maxCount = 0;
+    uint16_t finalARR = 0;
+    uint16_t finalVrefDACValue = 0;
+    for(int i=0;i<20;i++)
+    {
+        uint16_t count = 1;
+        int j=i+1;
+        for(;j<20;j++)
+        {
+            if(targetARR[i] == targetARR[j])
+            {
+                count++;
+            }
+            else
+            {
+                break;
+            }
+        }
+        if(count > maxCount)
+        {
+            maxCount = count;
+            finalARR = targetARR[i];
+            finalVrefDACValue = 2048-1000 + (i*100+(j-1)*100)/2; // 取当前和最后一个相同的target的中间值作为最终的比较电压
+        }
+    }
+    BSP_COMP_SetVrefDACValue(finalVrefDACValue);
+    __HAL_TIM_SET_AUTORELOAD(&htim1, finalARR);
     __HAL_TIM_SET_COUNTER(&htim1, 0);
+
 }

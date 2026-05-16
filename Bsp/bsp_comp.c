@@ -22,3 +22,9 @@ void BSP_COMP_SetVref(float vref)
     uint32_t dac_value = (uint32_t)((vref / 3.3) * 4095);
     HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, dac_value);
 }
+
+void BSP_COMP_SetVrefDACValue(uint16_t dac_value)
+{
+    if (dac_value > 4095) dac_value = 4095;
+    HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, dac_value);
+}

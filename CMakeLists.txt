@@ -50,6 +50,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Drv/RTT/SEGGER_RTT.c
     Drv/RTT/SEGGER_RTT_printf.c
     Drv/AD983x.c
+    Drv/oled/oled.c
+    Drv/oled/font.c
 )
 
 # Add include paths
@@ -59,6 +61,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     App
     Drv
     Drv/RTT
+    Drv/oled
 )
 
 # Add project symbols (macros)
