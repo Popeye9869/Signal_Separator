@@ -22,11 +22,9 @@
 #include "comp.h"
 #include "dac.h"
 #include "dma.h"
-#include "font.h"
 #include "i2c.h"
 #include "opamp.h"
 #include "spi.h"
-#include "stm32g4xx_hal_spi.h"
 #include "tim.h"
 #include "gpio.h"
 
@@ -130,6 +128,7 @@ void SystemClock_Config(void);
 
 void WaveIdentify(void)
 {
+  memset(&waveform_info, 0, sizeof(waveform_info)); // 清空波形信息结构体
   for (int i = 0; i < 512/5; i++)
   {
     if (fftMagnitude[i] > 190)
@@ -253,10 +252,11 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
       WaveIdentify(); // 进行波形识别，更新 dds_output 数组
       AD983x_Init(&ad9833_dds_1, dds_output[0].Waveform, dds_output[0].Freq, 0); // 初始化第一个 AD9833 DDS
       AD983x_Init(&ad9833_dds_2, dds_output[1].Waveform, dds_output[1].Freq, 0); // 初始化第二个 AD9833 DDS
-      AD983x_SetPhaseDeg(&ad9833_dds_1, AD983X_REG_0 , 0); // 设置第一个 DDS 的相位为 0 度
-      AD983x_SetPhaseDeg(&ad9833_dds_2, AD983X_REG_0 , 0); // 设置第二个 DDS 的相位为 0 度
+      //AD983x_SetPhaseDeg(&ad9833_dds_1, AD983X_REG_0 , 0); // 设置第一个 DDS 的相位为 0 度
+      //AD983x_SetPhaseDeg(&ad9833_dds_2, AD983X_REG_0 , 0); // 设置第二个 DDS 的相位为 0 度
+      uint16_t phaseDegOffset = (uint16_t)((double)25*(double)dds_output[1].Freq/1000000);
       AD983x_SetPhaseDeg(&ad9833_dds_1, AD983X_REG_0 , dds_output[0].Phase); // 设置第一个 DDS 的相位
-      AD983x_SetPhaseDeg(&ad9833_dds_2, AD983X_REG_0 , dds_output[1].Phase); // 设置第二个 DDS 的相位
+      AD983x_SetPhaseDeg(&ad9833_dds_2, AD983X_REG_0 , dds_output[1].Phase+phaseDegOffset); // 设置第二个 DDS 的相位
   }
 }
 
@@ -271,16 +271,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   }
   if(GPIO_Pin == KEY1_Pin) // 如果是 KEY1 触发的外部中断
   {
-    HAL_NVIC_DisableIRQ(KEY1_EXTI_IRQn); // 禁止 KEY1 的外部中断，防止重复触发
     dds_output[0].Phase = 0; // 将第一个 DDS 的相位重置为 0 度
     dds_output[1].Phase = dds_output[1].Phase + 5; // 将第二个 DDS 的相位增加 5 度
     if(dds_output[1].Phase >= 185)
     {
       dds_output[1].Phase = 0; // 如果相位超过 185 度，则重置为 0 度
     }
+    uint16_t phaseDegOffset = (uint16_t)((double)25*(double)dds_output[1].Freq/1000000);
     AD983x_SetPhaseDeg(&ad9833_dds_1, AD983X_REG_0 , dds_output[0].Phase); // 更新第一个 DDS 的相位
-    AD983x_SetPhaseDeg(&ad9833_dds_2, AD983X_REG_0 , dds_output[1].Phase); // 更新第二个 DDS 的相位
-    HAL_NVIC_EnableIRQ(KEY1_EXTI_IRQn); // 开启 KEY1 的外部中断
+    AD983x_SetPhaseDeg(&ad9833_dds_2, AD983X_REG_0 , dds_output[1].Phase+phaseDegOffset); // 更新第二个 DDS 的相位
   }
     
 }
@@ -380,6 +379,7 @@ int main(void)
     }
 
     OLED_ShowFrame(); // 显示 OLED 帧
+    HAL_Delay(100); // 每 100 ms 更新一次显示
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
