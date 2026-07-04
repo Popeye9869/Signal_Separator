@@ -131,7 +131,7 @@ void WaveIdentify(void)
   memset(&waveform_info, 0, sizeof(waveform_info)); // 清空波形信息结构体
   for (int i = 0; i < 512/5; i++)
   {
-    if (fftMagnitude[i] > 190)
+    if (fftMagnitude[i] > 130)
     {
       waveform_info.peak_info[waveform_info.num_peak].peak_freq = i*5000; // 记录峰值频率
       waveform_info.peak_info[waveform_info.num_peak].peak_value = fftMagnitude[i]; // 记录峰值幅值
