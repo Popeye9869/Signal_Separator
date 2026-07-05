@@ -91,7 +91,7 @@ typedef struct {
 
 typedef struct {
   uint32_t Freq;
-  uint16_t Phase;
+  uint32_t Phase;
   AD9833_WaveformMode Waveform;
 } DDS_OUTPUT;
 
@@ -214,31 +214,45 @@ void WaveIdentify(void)
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
-    if (hadc->Instance == ADC1)
-    {
-      for (int i = 0; i < 1024; i++) {
-        adcValues[i] = adcValues[i] >> 1; // 将 12 位 ADC 数据转换为 15 位 Q15 格式
-      }
-      arm_rfft_init_q15(&S, 1024, 0, 1); // 初始化 RFFT 实例，长度为 1024，正向 FFT，使用 bit-reversal 顺序
-      arm_rfft_q15(&S, (q15_t*)adcValues, fftOutput);
-      //arm_cmplx_mag_q15(fftOutput, fftMagnitude, 512 ); // 计算 FFT 输出的幅值512
-      for (int i = 0; i < 512/5; i++) {// 只计算i为5的倍数的幅值
-        uint32_t real = fftOutput[2*i*5]; // 实部
-        uint32_t imag = fftOutput[2*i*5 + 1]; // 虚部
-        fftMagnitude[i] = sqrt(real * real + imag * imag); // 计算幅值
-      }
-      fftMagnitude[0] = 0; // 直流分量幅值设为0，忽略直流偏置对频谱的影响
-      WaveIdentify(); // 进行波形识别，更新 dds_output 数组
-      AD9833_SetWaveform(&h9833_1, dds_output[0].Waveform); // 设置第一个 DDS 的波形
-      AD9833_SetFrequency(&h9833_1, dds_output[0].Freq); // 设置第一个 DDS 的频率
-      AD9833_SetWaveform(&h9833_2, dds_output[1].Waveform); // 设置第二个 DDS 的波形
-      AD9833_SetFrequency(&h9833_2, dds_output[1].Freq); // 设置第二个 DDS 的频率
-      HAL_GPIO_WritePin(h9833_1.FSYN_GPIO_Port, h9833_1.FSYN_Pin, GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(h9833_2.FSYN_GPIO_Port, h9833_2.FSYN_Pin, GPIO_PIN_RESET);
-      AD9833_ResetWithoutFsyn(&h9833_1);
-      HAL_GPIO_WritePin(h9833_1.FSYN_GPIO_Port, h9833_1.FSYN_Pin, GPIO_PIN_SET);
-      HAL_GPIO_WritePin(h9833_2.FSYN_GPIO_Port, h9833_2.FSYN_Pin, GPIO_PIN_SET);
+  if (hadc->Instance == ADC1)
+  {
+    for (int i = 0; i < 1024; i++) {
+      adcValues[i] = adcValues[i] >> 1; // 将 12 位 ADC 数据转换为 15 位 Q15 格式
+    }
+    arm_rfft_init_q15(&S, 1024, 0, 1); // 初始化 RFFT 实例，长度为 1024，正向 FFT，使用 bit-reversal 顺序
+    arm_rfft_q15(&S, (q15_t*)adcValues, fftOutput);
+    //arm_cmplx_mag_q15(fftOutput, fftMagnitude, 512 ); // 计算 FFT 输出的幅值512
+    for (int i = 0; i < 512/5; i++) {// 只计算i为5的倍数的幅值
+      uint32_t real = fftOutput[2*i*5]; // 实部
+      uint32_t imag = fftOutput[2*i*5 + 1]; // 虚部
+      fftMagnitude[i] = sqrt(real * real + imag * imag); // 计算幅值
+    }
+    fftMagnitude[0] = 0; // 直流分量幅值设为0，忽略直流偏置对频谱的影响
+    WaveIdentify(); // 进行波形识别，更新 dds_output 数组
+    HAL_GPIO_WritePin(h9833_1.FSYN_GPIO_Port, h9833_1.FSYN_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(h9833_2.FSYN_GPIO_Port, h9833_2.FSYN_Pin, GPIO_PIN_RESET);
+    AD9833_Reset(&h9833_1); // 重置第一个 DDS
+    HAL_GPIO_WritePin(h9833_1.FSYN_GPIO_Port, h9833_1.FSYN_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(h9833_2.FSYN_GPIO_Port, h9833_2.FSYN_Pin, GPIO_PIN_SET);
+    AD9833_SetWaveform(&h9833_1, dds_output[0].Waveform); // 设置第一个 DDS 的波形
+    AD9833_SetFrequency(&h9833_1, dds_output[0].Freq); // 设置第一个 DDS 的频率
+    AD9833_SetWaveform(&h9833_2, dds_output[1].Waveform); // 设置第二个 DDS 的波形
+    AD9833_SetFrequency(&h9833_2, dds_output[1].Freq); // 设置第二个 DDS 的频率
+    AD9833_SetPhaseDeg(&h9833_1, dds_output[0].Phase); // 设置第一个 DDS 的相位
+    AD9833_SetPhaseDeg(&h9833_2, dds_output[1].Phase); // 设置第二个 DDS 的相位
 
+
+    HAL_GPIO_WritePin(h9833_1.FSYN_GPIO_Port, h9833_1.FSYN_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(h9833_2.FSYN_GPIO_Port, h9833_2.FSYN_Pin, GPIO_PIN_RESET);
+    AD9833_Reset(&h9833_1); // 重置第一个 DDS
+    HAL_GPIO_WritePin(h9833_1.FSYN_GPIO_Port, h9833_1.FSYN_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(h9833_2.FSYN_GPIO_Port, h9833_2.FSYN_Pin, GPIO_PIN_SET);
+    AD9833_SetWaveform(&h9833_1, dds_output[0].Waveform); // 设置第一个 DDS 的波形
+    AD9833_SetFrequency(&h9833_1, dds_output[0].Freq); // 设置第一个 DDS 的频率
+    AD9833_SetWaveform(&h9833_2, dds_output[1].Waveform); // 设置第二个 DDS 的波形
+    AD9833_SetFrequency(&h9833_2, dds_output[1].Freq); // 设置第二个 DDS 的频率
+    AD9833_SetPhaseDeg(&h9833_1, dds_output[0].Phase); // 设置第一个 DDS 的相位
+    AD9833_SetPhaseDeg(&h9833_2, dds_output[1].Phase); // 设置第二个 DDS 的相位
   }
 }
 
@@ -246,21 +260,32 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   if (GPIO_Pin == KEY0_Pin) // 如果是 KEY0 触发的外部中断
   {
-    HAL_ADC_Stop_DMA(&hadc1); // 停止 ADC DMA 采样
-    ClockGen_Update(); // 进行一次时钟更新，调整分频比以匹配输入信号频率
-    HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
-    HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adcValues, 1024); // 启动 ADC DMA 采样，结果存储在 adcValues 数组中
+    HAL_Delay(30); // 延时 30 ms，进行按键消抖
+    if(HAL_GPIO_ReadPin(KEY0_GPIO_Port, KEY0_Pin) == GPIO_PIN_RESET)
+    {
+      HAL_ADC_Stop_DMA(&hadc1); // 停止 ADC DMA 采样
+      ClockGen_Update(); // 进行一次时钟更新，调整分频比以匹配输入信号频率
+      HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
+      HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adcValues, 1024); // 启动 ADC DMA 采样，结果存储在 adcValues 数组中
+    }
   }
   if(GPIO_Pin == KEY1_Pin) // 如果是 KEY1 触发的外部中断
   {
-    dds_output[0].Phase = 0; // 将第一个 DDS 的相位重置为 0 度
-    dds_output[1].Phase = dds_output[1].Phase + 5; // 将第二个 DDS 的相位增加 5 度
-    if(dds_output[1].Phase >= 185)
+    HAL_Delay(30); // 延时 30 ms，进行按键消抖
+    if(HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == GPIO_PIN_RESET)
     {
-      dds_output[1].Phase = 0; // 如果相位超过 185 度，则重置为 0 度
+      while(HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == GPIO_PIN_RESET); // 等待按键释放
+      dds_output[0].Phase = 0; // 将第一个 DDS 的相位重置为 0 度
+      dds_output[1].Phase = dds_output[1].Phase + 5; // 将第二个 DDS 的相位增加 5 度
+      if(dds_output[1].Phase >= 185)
+      {
+        dds_output[1].Phase = 0; // 如果相位超过 185 度，则重置为 0 度
+      }
+      //AD9833_SetPhase(&h9833_1, dds_output[0].Phase); // 设置第一个 DDS 的相位
+      //uint32_t phaseBias = (double)0.00000375*(double)dds_output[1].F
+      AD9833_SetPhaseDeg(&h9833_2, dds_output[1].Phase); // 设置第二个 DDS 的相位
     }
-    AD9833_SetPhase(&h9833_1, dds_output[0].Phase); // 设置第一个 DDS 的相位
-    AD9833_SetPhase(&h9833_2, dds_output[1].Phase); // 设置第二个 DDS 的相位
+    
   }
     
 }
@@ -326,7 +351,7 @@ int main(void)
   {
     OLED_NewFrame(); // 开始新的 OLED 帧
     char buffer[64];
-    sprintf(buffer, "FA:%ld PhA:%d", dds_output[0].Freq/1000, dds_output[0].Phase);
+    sprintf(buffer, "FA:%ld PhA:%ld", dds_output[0].Freq/1000, dds_output[0].Phase);
     OLED_PrintString(0, 0, buffer, &font16x16, OLED_COLOR_NORMAL);
     switch (dds_output[0].Waveform) {
       case AD9833_MODE_SINE:
@@ -343,7 +368,7 @@ int main(void)
         break;
     }
 
-    sprintf(buffer, "FB:%ld PhB:%d", dds_output[1].Freq/1000, dds_output[1].Phase);
+    sprintf(buffer, "FB:%ld PhB:%ld", dds_output[1].Freq/1000, dds_output[1].Phase);
     OLED_PrintString(0, 32, buffer, &font16x16, OLED_COLOR_NORMAL);
     switch (dds_output[1].Waveform) {
       case AD9833_MODE_SINE:

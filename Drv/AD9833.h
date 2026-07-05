@@ -68,8 +68,8 @@ HAL_StatusTypeDef AD9833_ResetWithoutFsyn(AD9833_HandleTypeDef *had9833);
 HAL_StatusTypeDef AD9833_SetFrequency(AD9833_HandleTypeDef *had9833, uint32_t frequency);
 HAL_StatusTypeDef AD9833_SetWaveform(AD9833_HandleTypeDef *had9833, AD9833_WaveformMode waveform);
 HAL_StatusTypeDef AD9833_SetPhase(AD9833_HandleTypeDef *had9833, uint16_t phase);
-HAL_StatusTypeDef AD9833_SetPhaseDeg(AD9833_HandleTypeDef *had9833, float phaseDeg);
+HAL_StatusTypeDef AD9833_SetPhaseDeg(AD9833_HandleTypeDef *had9833, uint32_t phaseDeg);
 HAL_StatusTypeDef AD9833_SetPhaseWithoutFsyn(AD9833_HandleTypeDef *had9833, uint16_t phase);
-HAL_StatusTypeDef AD9833_SetPhaseDegWithoutFsyn(AD9833_HandleTypeDef *had9833, float phaseDeg);
+HAL_StatusTypeDef AD9833_SetPhaseDegWithoutFsyn(AD9833_HandleTypeDef *had9833, uint32_t phaseDeg);
 
 #endif // __AD9833_H

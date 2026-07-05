@@ -32,10 +32,93 @@ HAL_StatusTypeDef AD9833_Reset(AD9833_HandleTypeDef *had9833) {
     HAL_GPIO_WritePin(had9833->FSYN_GPIO_Port, had9833->FSYN_Pin, GPIO_PIN_RESET);
     HAL_StatusTypeDef status = HAL_SPI_Transmit(had9833->hspi, (uint8_t*)&controlWord, 1, HAL_MAX_DELAY);
     HAL_GPIO_WritePin(had9833->FSYN_GPIO_Port, had9833->FSYN_Pin, GPIO_PIN_SET);
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
     had9833->controlReg.bits.Reset = 0; // Clear the reset bit
-    HAL_Delay(10); // Wait for 200 ms to ensure the reset is processed
     HAL_GPIO_WritePin(had9833->FSYN_GPIO_Port, had9833->FSYN_Pin, GPIO_PIN_RESET);
     status = HAL_SPI_Transmit(had9833->hspi, (uint8_t*)&had9833->controlReg.raw, 1, HAL_MAX_DELAY);
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
     HAL_GPIO_WritePin(had9833->FSYN_GPIO_Port, had9833->FSYN_Pin, GPIO_PIN_SET);
     return status;
 }
@@ -46,7 +129,34 @@ HAL_StatusTypeDef AD9833_ResetWithoutFsyn(AD9833_HandleTypeDef *had9833)
     uint16_t controlWord = had9833->controlReg.raw;
     HAL_StatusTypeDef status = HAL_SPI_Transmit(had9833->hspi, (uint8_t*)&controlWord, 1, HAL_MAX_DELAY);
     had9833->controlReg.bits.Reset = 0; // Clear the reset bit
-    HAL_Delay(200); // Wait for 200 ms to ensure the reset is processed
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
+    __NOP(); // Small delay to ensure the reset command is processed
+    __NOP();
     return status;
 }
 
@@ -89,7 +199,7 @@ HAL_StatusTypeDef AD9833_SetPhase(AD9833_HandleTypeDef *had9833, uint16_t phase)
     return status;
 }
 
-HAL_StatusTypeDef AD9833_SetPhaseDeg(AD9833_HandleTypeDef *had9833, float phaseDeg)
+HAL_StatusTypeDef AD9833_SetPhaseDeg(AD9833_HandleTypeDef *had9833, uint32_t phaseDeg)
 {
     uint16_t phase = (uint16_t)(phaseDeg * 4096.0f / 360.0f);
     return AD9833_SetPhase(had9833, phase);
@@ -101,7 +211,7 @@ HAL_StatusTypeDef AD9833_SetPhaseWithoutFsyn(AD9833_HandleTypeDef *had9833, uint
     return HAL_SPI_Transmit(had9833->hspi, (uint8_t*)&had9833->phaseReg0.raw, 1, HAL_MAX_DELAY);
 }
 
-HAL_StatusTypeDef AD9833_SetPhaseDegWithoutFsyn(AD9833_HandleTypeDef *had9833, float phaseDeg)
+HAL_StatusTypeDef AD9833_SetPhaseDegWithoutFsyn(AD9833_HandleTypeDef *had9833, uint32_t phaseDeg)
 {
     uint16_t phase = (uint16_t)(phaseDeg * 4096.0f / 360.0f);
     return AD9833_SetPhaseWithoutFsyn(had9833, phase);
