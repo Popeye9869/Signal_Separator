@@ -33,7 +33,7 @@
 #include "clock_gen.h"
 #include "arm_math.h"
 #include "SEGGER_RTT.h"
-#include "AD983x.h"
+#include "AD9833.h"
 #include <stdint.h>
 #include <math.h>
 #include <stdio.h>
@@ -64,39 +64,18 @@ q15_t fftOutput[2048]={0}; // 存储 FFT 输出的数组
 uint32_t fftMagnitude[512/5]={0}; // 存储 FFT 幅值的数组
 arm_rfft_instance_q15 S; // 定义 RFFT 实例
 
-static AD983x_Handle_t ad9833_dds_1 = {
-  .gpioPort                     = GPIOE,                     /* GPIO port used for DDS control pins              */
-  .serialDataGpioPin            = GPIO_PIN_14,                /* SDATA: serial data line to the DDS               */
-  .serialClockGpioPin           = GPIO_PIN_12,                /* SCLK: serial clock for shifting data             */
-  .frameSyncGpioPin             = GPIO_PIN_15,                /* FSYNC: frame sync / chip select for DDS          */
-  .spiHandle                    = &hspi4,                    /* Hardware SPI handle (NULL for software SPI)      */
-  .masterClockFrequencyHz       = 1280000u,                 /* 25 MHz MCLK input provided to AD9833             */
-  .currentWaveformType          = AD983X_WAVE_SINE,          /* Default waveform output (sine wave)              */
-  .activeFrequencyRegister      = AD983X_REG_0,              /* Currently selected frequency register (FREQ0)    */
-  .activePhaseRegister          = AD983X_REG_0,              /* Currently selected phase register (PHASE0)       */
-  .sleep1BitState               = AD983X_SLEEP_DISABLED,     /* DAC sleep control bit state                      */
-  .sleep12BitState              = AD983X_SLEEP_DISABLED,     /* Master clock / internal sleep control            */
-  .deviceType                   = AD983X_DEVICE_AD9833,      /* Specifies the DDS device type                    */
-  .frequencyHz                  = { 0u, 0u },                /* Stored frequencies for FREQ0 and FREQ1 registers */
-  .phaseDeg                     = { 0u, 0u },                /* Stored phases for PHASE0 and PHASE1 registers    */
+AD9833_HandleTypeDef h9833_1 = {
+  .FSYN_GPIO_Port = GPIOE,
+  .FSYN_Pin = GPIO_PIN_15,
+  .hspi = &hspi1,
+  .MCLK_Hz = 1280000u
 };
 
-
-static AD983x_Handle_t ad9833_dds_2 = {
-  .gpioPort                     = GPIOC,                     /* GPIO port used for DDS control pins              */
-  .serialDataGpioPin            = GPIO_PIN_7,                /* SDATA: serial data line to the DDS               */
-  .serialClockGpioPin           = GPIO_PIN_5,                /* SCLK: serial clock for shifting data             */
-  .frameSyncGpioPin             = GPIO_PIN_4,                /* FSYNC: frame sync / chip select for DDS          */
-  .spiHandle                    = &hspi1,                    /* Hardware SPI handle (NULL for software SPI)      */
-  .masterClockFrequencyHz       = 1280000u,                 /* 25 MHz MCLK input provided to AD9833             */
-  .currentWaveformType          = AD983X_WAVE_SINE,          /* Default waveform output (sine wave)              */
-  .activeFrequencyRegister      = AD983X_REG_0,              /* Currently selected frequency register (FREQ0)    */
-  .activePhaseRegister          = AD983X_REG_0,              /* Currently selected phase register (PHASE0)       */
-  .sleep1BitState               = AD983X_SLEEP_DISABLED,     /* DAC sleep control bit state                      */
-  .sleep12BitState              = AD983X_SLEEP_DISABLED,     /* Master clock / internal sleep control            */
-  .deviceType                   = AD983X_DEVICE_AD9833,      /* Specifies the DDS device type                    */
-  .frequencyHz                  = { 0u, 0u },                /* Stored frequencies for FREQ0 and FREQ1 registers */
-  .phaseDeg                     = { 0u, 0u },                /* Stored phases for PHASE0 and PHASE1 registers    */
+AD9833_HandleTypeDef h9833_2 = {
+  .FSYN_GPIO_Port = GPIOC,
+  .FSYN_Pin = GPIO_PIN_4,
+  .hspi = &hspi1,
+  .MCLK_Hz = 1280000u
 };
 
 typedef struct {
@@ -113,7 +92,7 @@ typedef struct {
 typedef struct {
   uint32_t Freq;
   uint16_t Phase;
-  AD983x_Waveform_t Waveform;
+  AD9833_WaveformMode Waveform;
 } DDS_OUTPUT;
 
 DDS_OUTPUT dds_output[2] = {0};
@@ -151,16 +130,16 @@ void WaveIdentify(void)
       float ratio = (float)waveform_info.peak_info[1].peak_value / (float)waveform_info.peak_info[0].peak_value;
       if(ratio>1.1)
       {
-        dds_output[0].Waveform = AD983X_WAVE_TRIANGLE;
+        dds_output[0].Waveform = AD9833_MODE_TRIANGLE;
         dds_output[0].Freq = waveform_info.peak_info[0].peak_freq;
-        dds_output[1].Waveform = AD983X_WAVE_SINE;
+        dds_output[1].Waveform = AD9833_MODE_SINE;
         dds_output[1].Freq = waveform_info.peak_info[1].peak_freq;
       }
       else
       {
-        dds_output[0].Waveform = AD983X_WAVE_SINE;
+        dds_output[0].Waveform = AD9833_MODE_SINE;
         dds_output[0].Freq = waveform_info.peak_info[0].peak_freq;
-        dds_output[1].Waveform = AD983X_WAVE_SINE;
+        dds_output[1].Waveform = AD9833_MODE_SINE;
         dds_output[1].Freq = waveform_info.peak_info[1].peak_freq;
       }
       break;
@@ -175,13 +154,13 @@ void WaveIdentify(void)
           {
             if(i==waveform_info.highest_peak_index)
             {
-              dds_output[k].Waveform = AD983X_WAVE_SINE;
+              dds_output[k].Waveform = AD9833_MODE_SINE;
               dds_output[k].Freq = waveform_info.peak_info[i].peak_freq;
               k++;
             }
             else
             {
-              dds_output[k].Waveform = AD983X_WAVE_TRIANGLE;
+              dds_output[k].Waveform = AD9833_MODE_TRIANGLE;
               dds_output[k].Freq = waveform_info.peak_info[i].peak_freq;
               k++;
             }
@@ -194,8 +173,8 @@ void WaveIdentify(void)
       }
       else
       {
-        dds_output[0].Waveform = AD983X_WAVE_TRIANGLE;
-        dds_output[1].Waveform = AD983X_WAVE_TRIANGLE;
+        dds_output[0].Waveform = AD9833_MODE_TRIANGLE;
+        dds_output[1].Waveform = AD9833_MODE_TRIANGLE;
         int k = 0;
         for(int i=0;i<waveform_info.num_peak;i++)
         {
@@ -212,9 +191,9 @@ void WaveIdentify(void)
       }
       break;
     case 4:
-      dds_output[0].Waveform = AD983X_WAVE_TRIANGLE;
+      dds_output[0].Waveform = AD9833_MODE_TRIANGLE;
       dds_output[0].Freq = waveform_info.peak_info[0].peak_freq;
-      dds_output[1].Waveform = AD983X_WAVE_TRIANGLE;
+      dds_output[1].Waveform = AD9833_MODE_TRIANGLE;
       if(waveform_info.peak_info[1].peak_value > 1000)
       {
         dds_output[1].Freq = waveform_info.peak_info[1].peak_freq;
@@ -225,9 +204,9 @@ void WaveIdentify(void)
       }
       break;
     default:
-      dds_output[0].Waveform = AD983X_WAVE_SINE;
+      dds_output[0].Waveform = AD9833_MODE_SINE;
       dds_output[0].Freq = waveform_info.peak_info[0].peak_freq;
-      dds_output[1].Waveform = AD983X_WAVE_SINE;
+      dds_output[1].Waveform = AD9833_MODE_SINE;
       dds_output[1].Freq = waveform_info.peak_info[1].peak_freq;
       break;
   }
@@ -250,13 +229,16 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
       }
       fftMagnitude[0] = 0; // 直流分量幅值设为0，忽略直流偏置对频谱的影响
       WaveIdentify(); // 进行波形识别，更新 dds_output 数组
-      AD983x_Init(&ad9833_dds_1, dds_output[0].Waveform, dds_output[0].Freq, 0); // 初始化第一个 AD9833 DDS
-      AD983x_Init(&ad9833_dds_2, dds_output[1].Waveform, dds_output[1].Freq, 0); // 初始化第二个 AD9833 DDS
-      //AD983x_SetPhaseDeg(&ad9833_dds_1, AD983X_REG_0 , 0); // 设置第一个 DDS 的相位为 0 度
-      //AD983x_SetPhaseDeg(&ad9833_dds_2, AD983X_REG_0 , 0); // 设置第二个 DDS 的相位为 0 度
-      uint16_t phaseDegOffset = (uint16_t)((double)25*(double)dds_output[1].Freq/1000000);
-      AD983x_SetPhaseDeg(&ad9833_dds_1, AD983X_REG_0 , dds_output[0].Phase); // 设置第一个 DDS 的相位
-      AD983x_SetPhaseDeg(&ad9833_dds_2, AD983X_REG_0 , dds_output[1].Phase+phaseDegOffset); // 设置第二个 DDS 的相位
+      AD9833_SetWaveform(&h9833_1, dds_output[0].Waveform); // 设置第一个 DDS 的波形
+      AD9833_SetFrequency(&h9833_1, dds_output[0].Freq); // 设置第一个 DDS 的频率
+      AD9833_SetWaveform(&h9833_2, dds_output[1].Waveform); // 设置第二个 DDS 的波形
+      AD9833_SetFrequency(&h9833_2, dds_output[1].Freq); // 设置第二个 DDS 的频率
+      HAL_GPIO_WritePin(h9833_1.FSYN_GPIO_Port, h9833_1.FSYN_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(h9833_2.FSYN_GPIO_Port, h9833_2.FSYN_Pin, GPIO_PIN_RESET);
+      AD9833_ResetWithoutFsyn(&h9833_1);
+      HAL_GPIO_WritePin(h9833_1.FSYN_GPIO_Port, h9833_1.FSYN_Pin, GPIO_PIN_SET);
+      HAL_GPIO_WritePin(h9833_2.FSYN_GPIO_Port, h9833_2.FSYN_Pin, GPIO_PIN_SET);
+
   }
 }
 
@@ -277,9 +259,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     {
       dds_output[1].Phase = 0; // 如果相位超过 185 度，则重置为 0 度
     }
-    uint16_t phaseDegOffset = (uint16_t)((double)25*(double)dds_output[1].Freq/1000000);
-    AD983x_SetPhaseDeg(&ad9833_dds_1, AD983X_REG_0 , dds_output[0].Phase); // 更新第一个 DDS 的相位
-    AD983x_SetPhaseDeg(&ad9833_dds_2, AD983X_REG_0 , dds_output[1].Phase+phaseDegOffset); // 更新第二个 DDS 的相位
+    AD9833_SetPhase(&h9833_1, dds_output[0].Phase); // 设置第一个 DDS 的相位
+    AD9833_SetPhase(&h9833_2, dds_output[1].Phase); // 设置第二个 DDS 的相位
   }
     
 }
@@ -327,7 +308,6 @@ int main(void)
   MX_DAC1_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
-  MX_SPI4_Init();
   MX_I2C2_Init();
   MX_OPAMP3_Init();
   MX_TIM3_Init();
@@ -335,6 +315,8 @@ int main(void)
   ClockGen_Init();
   HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_RESET); // 指示灯亮，表示时钟发生器已启动
   HAL_Delay(500); // 等待时钟发生器稳定
+  AD9833_Init(&h9833_1); // 初始化第一个 AD9833 DDS
+  AD9833_Init(&h9833_2); // 初始化第二个 AD9833 DDS
   OLED_Init(); // 初始化 OLED 显示屏
   /* USER CODE END 2 */
 
@@ -347,13 +329,13 @@ int main(void)
     sprintf(buffer, "FA:%ld PhA:%d", dds_output[0].Freq/1000, dds_output[0].Phase);
     OLED_PrintString(0, 0, buffer, &font16x16, OLED_COLOR_NORMAL);
     switch (dds_output[0].Waveform) {
-      case AD983X_WAVE_SINE:
+      case AD9833_MODE_SINE:
         OLED_PrintString(0, 16, "WA:SINE", &font16x16, OLED_COLOR_NORMAL);
         break;
-      case AD983X_WAVE_TRIANGLE:
+      case AD9833_MODE_TRIANGLE:
         OLED_PrintString(0, 16, "WA:TRIANGLE", &font16x16, OLED_COLOR_NORMAL);
         break;
-      case AD983X_WAVE_SQUARE:
+      case AD9833_MODE_SQUARE:
         OLED_PrintString(0, 16, "WA:SQUARE", &font16x16, OLED_COLOR_NORMAL);
         break;
       default:
@@ -364,13 +346,13 @@ int main(void)
     sprintf(buffer, "FB:%ld PhB:%d", dds_output[1].Freq/1000, dds_output[1].Phase);
     OLED_PrintString(0, 32, buffer, &font16x16, OLED_COLOR_NORMAL);
     switch (dds_output[1].Waveform) {
-      case AD983X_WAVE_SINE:
+      case AD9833_MODE_SINE:
         OLED_PrintString(0, 48, "WB:SINE", &font16x16, OLED_COLOR_NORMAL);
         break;
-      case AD983X_WAVE_TRIANGLE:
+      case AD9833_MODE_TRIANGLE:
         OLED_PrintString(0, 48, "WB:TRIANGLE", &font16x16, OLED_COLOR_NORMAL);
         break;
-      case AD983X_WAVE_SQUARE:
+      case AD9833_MODE_SQUARE:
         OLED_PrintString(0, 48, "WB:SQUARE", &font16x16, OLED_COLOR_NORMAL);
         break;
       default:

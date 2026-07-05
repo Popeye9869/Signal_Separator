@@ -41,6 +41,8 @@
         * Free pins are configured automatically as Analog (this feature is enabled through
         * the Code Generation settings)
      PA0   ------> SharedAnalog_PA0
+     PE12   ------> SPI4_SCK
+     PE14   ------> SPI4_MOSI
      PB15   ------> COMP3_OUT
 */
 void MX_GPIO_Init(void)
@@ -150,6 +152,14 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PE12 PE14 */
+  GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_14;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Alternate = GPIO_AF5_SPI4;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : CS2_Pin */
   GPIO_InitStruct.Pin = CS2_Pin;

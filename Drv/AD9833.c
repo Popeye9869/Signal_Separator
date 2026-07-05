@@ -6,7 +6,6 @@
 
 HAL_StatusTypeDef AD9833_Init(AD9833_HandleTypeDef *had9833) {
     // Initialize control register with default values
-    HAL_Delay(1000);
     had9833->controlReg.raw = 0x0000;
     had9833->controlReg.bits.B28 = 1; // Enable 28-bit frequency writes
 

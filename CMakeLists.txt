@@ -50,6 +50,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Drv/RTT/SEGGER_RTT.c
     Drv/RTT/SEGGER_RTT_printf.c
     Drv/AD983x.c
+    Drv/AD9833.c
     Drv/oled/oled.c
     Drv/oled/font.c
 )
