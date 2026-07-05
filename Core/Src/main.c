@@ -150,7 +150,7 @@ void WaveIdentify(void)
         uint8_t k = 0;
         for(int i=0;i<waveform_info.num_peak;i++)
         {
-          if(waveform_info.peak_info[i].peak_freq > 1000)
+          if(waveform_info.peak_info[i].peak_value > 1000)
           {
             if(i==waveform_info.highest_peak_index)
             {
@@ -178,7 +178,7 @@ void WaveIdentify(void)
         int k = 0;
         for(int i=0;i<waveform_info.num_peak;i++)
         {
-          if(waveform_info.peak_info[i].peak_freq > 1000)
+          if(waveform_info.peak_info[i].peak_value > 1000)
           {
             dds_output[k].Freq = waveform_info.peak_info[i].peak_freq;
             k++;
