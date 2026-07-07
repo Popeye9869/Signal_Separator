@@ -86,6 +86,10 @@ void ClockGen_Update(void)
             maxCount = count;
             finalARR = targetARR[i];
             finalVrefDACValue = 2048-1000 + (i*100+(j-1)*100)/2; // 取当前和最后一个相同的target的中间值作为最终的比较电压
+            if(count > 15)
+            {
+                finalVrefDACValue = 2048-1000 + (i*100+(j-1)*100)/4; // 如果重复次数大于10, 则取当前和最后一个相同的target的1/4位置作为最终的比较电压
+            }
         }
     }
     BSP_COMP_SetVrefDACValue(finalVrefDACValue);
